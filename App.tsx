@@ -57,10 +57,12 @@ const App = () => {
       <StatusBar barStyle="dark-content" />
       <FlatList
         horizontal
+        style={styles.flatlist}
         data={data}
         renderItem={renderItem}
         onEndReachedThreshold={0.3}
         onEndReached={loadMore}
+        initialScrollIndex={1}
       />
       <View style={styles.rtlBox}>
         <View style={styles.status}>
@@ -83,6 +85,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 20,
   },
+  flatlist: {
+    flexGrow: 0,
+  },
   item: {
     width: 70,
     height: 70,
@@ -98,10 +103,11 @@ const styles = StyleSheet.create({
   rtlBox: {
     marginTop: 20,
     alignItems: 'center',
-    flex: 1,
   },
   status: {
     flexDirection: 'row',
+    marginTop: 20,
+    marginBottom: 10,
   },
   reload: {
     marginTop: 20,
