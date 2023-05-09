@@ -17,12 +17,14 @@ interface Item {
   index: number;
 }
 
-const initialData = Array(10)
+const tenItems = Array(10)
   .fill(0)
   .map((_, i) => ({index: i, color: generateColor()}));
 
+const twoItems = tenItems.slice(0, 2);
+
 const App = () => {
-  const [data, setData] = useState(initialData);
+  const [infiniteScrollItems, setInfiniteScrollItems] = useState(tenItems);
   const [isRtl, setRtl] = useState(I18nManager.isRTL);
   const initialRtlState = useRef(I18nManager.isRTL);
 
@@ -36,7 +38,7 @@ const App = () => {
   );
 
   const loadMore = useCallback(() => {
-    setData(prevData => {
+    setInfiniteScrollItems(prevData => {
       const newData = [...prevData];
       for (let i = 0; i < 10; i++) {
         newData.push({index: prevData.length + i, color: generateColor()});
@@ -55,14 +57,29 @@ const App = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
+      <Text style={styles.title}>Infinite scrolling</Text>
       <FlatList
         horizontal
         style={styles.flatlist}
-        data={data}
+        data={infiniteScrollItems}
         renderItem={renderItem}
         onEndReachedThreshold={0.3}
         onEndReached={loadMore}
-        initialScrollIndex={1}
+        disableVirtualization
+      />
+      <Text style={styles.title}>Fixed size, not fitting screen width</Text>
+      <FlatList
+        horizontal
+        style={styles.flatlist}
+        data={tenItems}
+        renderItem={renderItem}
+      />
+      <Text style={styles.title}>Fixed size, fitting screen width</Text>
+      <FlatList
+        horizontal
+        style={styles.flatlist}
+        data={twoItems}
+        renderItem={renderItem}
       />
       <View style={styles.rtlBox}>
         <View style={styles.status}>
@@ -87,10 +104,17 @@ const styles = StyleSheet.create({
   },
   flatlist: {
     flexGrow: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    padding: 10,
   },
   item: {
-    width: 70,
-    height: 70,
+    width: 90,
+    height: 90,
     marginEnd: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -101,7 +125,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   rtlBox: {
-    marginTop: 20,
     alignItems: 'center',
   },
   status: {
