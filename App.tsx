@@ -1,4 +1,4 @@
-import React, {useCallback, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   Button,
   FlatList,
@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Text,
   View,
+  ViewToken,
 } from 'react-native';
 
 const generateColor = () => `#${Math.random().toString(16).substring(2, 8)}`;
@@ -17,14 +18,20 @@ interface Item {
   index: number;
 }
 
-const initialData = Array(10)
-  .fill(0)
-  .map((_, i) => ({index: i, color: generateColor()}));
+const PAGE_SIZE = 10;
+
+const genPage = (startIndex: number) =>
+  Array(PAGE_SIZE)
+    .fill(0)
+    .map((_, i) => ({index: i + startIndex, color: generateColor()}));
+
+const initialData = genPage(0);
 
 const App = () => {
   const [data, setData] = useState(initialData);
   const [isRtl, setRtl] = useState(I18nManager.isRTL);
   const initialRtlState = useRef(I18nManager.isRTL);
+  const listRef = useRef<FlatList>(null);
 
   const renderItem = useCallback(
     ({item}: {item: Item}) => (
@@ -36,14 +43,17 @@ const App = () => {
   );
 
   const loadMore = useCallback(() => {
-    setData(prevData => {
-      const newData = [...prevData];
-      for (let i = 0; i < 10; i++) {
-        newData.push({index: prevData.length + i, color: generateColor()});
-      }
-      return newData;
-    });
-  }, []);
+    // setData(prevData => {
+    //   const newData = [...prevData];
+    //   for (let i = 0; i < PAGE_SIZE; i++) {
+    //     newData.push({index: prevData.length + i, color: generateColor()});
+    //   }
+    //   return newData;
+    // });
+
+    const newData = [...data, ...genPage(data.length)];
+    setData(newData);
+  }, [data]);
 
   const toggleRtl = useCallback(() => {
     setRtl(wasRtl => {
@@ -52,19 +62,110 @@ const App = () => {
     });
   }, []);
 
+  const [hasReachedEnd, setReachedEnd] = useState(false);
+  const hasReachedEndRef = useRef(hasReachedEnd);
+  const numItemsRef = useRef(data.length);
+
+  useEffect(() => {
+    numItemsRef.current = data.length;
+
+    console.log({
+      maxIndex: Math.max(...data.map(i => i.index)),
+      numItems: data.length - 1,
+    });
+  }, [data]);
+  useEffect(() => {
+    hasReachedEndRef.current = hasReachedEnd;
+  }, [hasReachedEnd]);
+
+  const handleViewableItemsChanged = useRef(
+    ({
+      viewableItems,
+      changed,
+    }: {
+      viewableItems: ViewToken[];
+      changed: ViewToken[];
+    }) => {
+      // if (hasReachedEndRef.current) {
+      //   return;
+      // }
+
+      const threshold = 3;
+
+      //console.log(JSON.stringify(viewableItems.map(i => i.index)));
+      const furthestItemIdx = Math.max(
+        ...viewableItems.map(i => i.index ?? -1),
+      );
+      const shouldUserFurthestItem =
+        isFinite(furthestItemIdx) && furthestItemIdx !== -1;
+
+      // console.log({
+      //   furthestItemIdx,
+      //   shouldUserFurthestItem,
+      //   numItems: numItemsRef.current,
+      //   threshold: numItemsRef.current - furthestItemIdx,
+      // });
+      // if (numItemsRef.current >= 40) {
+      //   numItemsRef.current -= PAGE_SIZE;
+      // }
+      if (
+        shouldUserFurthestItem &&
+        numItemsRef.current - furthestItemIdx < threshold
+      ) {
+        console.log('[reached end]');
+        //hasReachedEndRef.current = true;
+        //setReachedEnd(true);
+        loadMore();
+      }
+    },
+  );
+
+  useEffect(() => {
+    if (hasReachedEnd) {
+      console.log('[loading more]');
+      loadMore();
+      setReachedEnd(false);
+      hasReachedEndRef.current = false;
+    }
+  }, [hasReachedEnd, loadMore]);
+
+  const keyExtractor = useCallback((item: Item, index: number) => {
+    return `item-${index}-${item.index}`;
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <FlatList
+        ref={listRef}
         horizontal
-        style={styles.flatlist}
+        keyExtractor={keyExtractor}
+        //key={`flatlist-n-${data.length}`}
+        style={[
+          styles.flatlist,
+          {
+            //flexDirection: 'row-reverse',
+          },
+        ]}
         data={data}
         renderItem={renderItem}
-        onEndReachedThreshold={0.3}
-        onEndReached={loadMore}
-        initialScrollIndex={1}
+        snapToEnd
+        disableVirtualization
+        onViewableItemsChanged={handleViewableItemsChanged.current}
+        viewabilityConfig={{
+          itemVisiblePercentThreshold: 20,
+        }}
+        // onEndReachedThreshold={0.3}
+        // onEndReached={loadMore}
+        // refreshControl={
+        //   <RefreshControl
+        //     refreshing={refreshing}
+        //     onRefresh={loadMore}
+        //     tintColor={'red'}
+        //   />
+        // }
       />
-      <View style={styles.rtlBox}>
+      <View style={[styles.rtlBox]}>
         <View style={styles.status}>
           <Text style={styles.text}>RTL enabled: {JSON.stringify(isRtl)}</Text>
         </View>
